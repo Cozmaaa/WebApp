@@ -6,8 +6,35 @@ const Tour = require('../models/tourModel');
 
 exports.getAllTours = async (req, res) => {
   try {
-    const tours = await Tour.find();
+    //BUILD THE QUERY
+    //1) Filtering
+    const queryObj = { ...req.query };
+    const excludedFields = ['page', 'sort', 'limit', 'fields'];
+    excludedFields.forEach((el) => {
+      if (queryObj[el]) {
+        delete queryObj[el];
+      }
+    });
 
+    console.log(req.query, queryObj);
+    //2)Advanced filtering
+    let queryStr = JSON.stringify(queryObj);
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`); //regular expression
+    console.log(JSON.parse(queryStr));
+
+    let query = Tour.find(JSON.parse(queryStr));
+
+    //3) Sorting
+    if (req.query.sort) {
+      const sortBy = req.query.sort.split(',').join(' '); //Mongoose sort would look like this sort ('price ratingsAverage') so we replace the , with spaces
+      query = query.sort(sortBy);
+    } else {
+      query = query.sort('-createdAt');
+    }
+
+    //EXECUTE THE QUERY
+    const tours = await query;
+    //Send response
     res.status(200).json({
       status: 'success',
       results: tours.length,
